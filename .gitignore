@@ -1,0 +1,18 @@
+# Mantemos apenas o site publicado
+*
+!index.html
+!.gitignore
+
+# Arquivos locais não versionados
+backup/
+designindex.html
+index2.html
+*.jpg
+*.webp
+*.png
+
+# Ambiente / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

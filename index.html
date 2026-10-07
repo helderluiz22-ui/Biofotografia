@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biosite Premium</title>
+    <!-- Importando Fontes -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fcfcfc;
+            --text-main: #111;
+            --text-sec: #777;
+            --card-radius: 30px;
+        }
+
+        /* Reserva o espaço da barra de rolagem: abrir o lightbox não desloca o layout */
+        html {
+            scrollbar-gutter: stable;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: clamp(400px, 70vw, 640px); /* celular: 100% até 400px · tablet: cresce até 640px */
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            overflow: clip; /* clip (não hidden) para não quebrar o position: sticky da galeria */
+            position: relative;
+        }
+
+        /* HERO SECTION
+           A foto agora é uma camada própria (::before) que ocupa 57% da largura e 100% da altura,
+           com background-size: cover. Assim ela encosta no topo e na base em qualquer altura/tela,
+           em vez de flutuar no meio com vão em cima e embaixo. */
+        .hero {
+            height: clamp(320px, 54svh, 460px); /* 54svh como antes, mas com limites p/ telas muito altas ou baixas */
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 57%;
+            background: url(https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=900&auto=format&fit=crop) center 25% / cover no-repeat;
+        }
+
+        /* Degradê branco -> transparente por cima da foto (mesmas cores de antes) */
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 104%;
+            background: linear-gradient(to right, #ffffff 0%, rgba(255, 255, 255, 0.95) 42%, rgb(0 0 0 / 13%) 60%);
+        }
+
+        /* CARD DE CONTEÚDO */
+        .content-card {
+            background: #fff;
+            margin-top: -30px; /* Sobe sobre a imagem */
+            border-top-left-radius: var(--card-radius);
+            border-top-right-radius: var(--card-radius);
+            position: relative;
+            padding: 25px 20px calc(10px + env(safe-area-inset-bottom, 0px));
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            margin: 0 0 15px 0;
+            letter-spacing: 1px;
+        }
+
+        .btn-follow {
+            display: inline-block;
+            padding: 8px 30px;
+            border: 1px solid #ddd;
+            border-radius: 50px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+            text-decoration: none;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        @media (hover: hover) {
+            .btn-follow:hover {
+                border-color: #333;
+                color: #000;
+            }
+        }
+
+        .bio {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text-sec);
+            line-height: 1.6;
+            margin: 0 0 30px 0;
+            max-width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ESTATÍSTICAS */
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+
+        .stat-item h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .stat-item span {
+            font-size: 9px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* GALERIA EM PILHA (uma foto sobrepondo a outra ao rolar)
+           --stack-top  = onde o 1º card trava (calculado pelo JS)
+           --stack-step = quanto cada card seguinte desce na pilha (calculado pelo JS)
+           Os valores abaixo são só o fallback caso o JS não rode. */
+        .stack-gallery {
+            position: relative;
+            /* sem padding-bottom: o fim da galeria precisa coincidir com o fim do último card */
+        }
+
+        /* Título fixo no topo enquanto a pilha se forma (os cards deslizam por baixo dele) */
+        .gallery-title {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #fff;
+            font-size: 18px;
+            color: #635f5f;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 12px 0 14px;
+        }
+
+        .stack-card {
+            position: sticky;
+            top: calc(var(--stack-top, 56px) + var(--i, 0) * var(--stack-step, 20px));
+            aspect-ratio: 10 / 7; /* só a altura menor, largura mantida */
+            width: 85%; /* Card um pouco menor, centralizado */
+            background-color: #eee;
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 0 auto 40px;
+            cursor: pointer;
+        }
+
+        /* Último card: sem margem embaixo, a galeria termina junto com ele */
+        .stack-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .stack-card img {
+            width: 100%;
+            height: 140%;
+            object-fit: cover;
+            filter: grayscale(100%);
+            display: block;
+            transition: filter 0.4s ease, transform 0.4s ease;
+        }
+
+        @media (hover: hover) {
+            .stack-card:hover img {
+                filter: grayscale(0%);
+                transform: scale(1.02);
+            }
+        }
+
+        /* Ícone de expandir (fullscreen) no card */
+        .stack-card .expand-hint {
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .stack-card .expand-hint svg {
+            width: 16px;
+            height: 16px;
+            fill: #fff;
+        }
+
+        /* LIGHTBOX FULLSCREEN */
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .lightbox.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .lightbox img {
+            /* Tamanho definido pela proporção (--ar, setada via JS), e não pela resolução do arquivo:
+               a miniatura e a versão grande ocupam exatamente o mesmo espaço, sem "pulo" na troca */
+            width: min(100%, calc(90svh * var(--ar, 1.5)));
+            height: auto;
+            aspect-ratio: var(--ar, 1.5);
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .lightbox.open img {
+            transform: scale(1);
+        }
+
+        /* Botão "X" para fechar */
+        .lightbox-close {
+            position: absolute;
+            top: max(20px, env(safe-area-inset-top));
+            right: max(20px, env(safe-area-inset-right));
+            width: 44px;
+            height: 44px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        /* FOOTER: altura natural, sem min-height. Quem alinha a pilha com o fim da página é o JS */
+        .footer {
+            text-align: center;
+            padding: 24px 0 8px;
+            font-size: 11px;
+            color: #b0b0b0;
+            letter-spacing: 0.5px;
+        }
+
+        /* ============ TABLETS / iPADS (a partir de 700px) ============ */
+        @media (min-width: 700px) {
+            .hero { height: clamp(360px, 54svh, 520px); }
+            .content-card { padding-top: 32px; padding-left: 32px; padding-right: 32px; }
+            h1 { font-size: 34px; }
+            .btn-follow { font-size: 13px; padding: 10px 36px; }
+            .bio { font-size: 14px; max-width: 70%; }
+            .stat-item h3 { font-size: 22px; }
+            .stat-item span { font-size: 11px; }
+            .gallery-title { font-size: 20px; }
+            .stack-card { border-radius: 20px; }
+            .footer { font-size: 12px; }
+        }
+
+        /* ============ TELAS BAIXAS (celular/tablet deitado) ============ */
+        @media (max-height: 500px) {
+            .hero { height: clamp(240px, 70svh, 360px); }
+            .stack-card { width: 55%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <section class="hero">
+            <!-- Imagem de fundo via CSS -->
+        </section>
+
+        <section class="content-card">
+            <h1>Dean Van Halen</h1>
+            <a href="#" class="btn-follow">Follow</a>
+            
+            <h1 class="bio">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sit sagittis cursus massa nunc tristique quis auctor.
+            </h1>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <h3>132</h3>
+                    <span>Seguindo</span>
+                </div>
+                <div class="stat-item">
+                    <h3>12k</h3>
+                    <span>Seguidores</span>
+                </div>
+                <div class="stat-item">
+                    <h3>59</h3>
+                    <span>Posts</span>
+                </div>
+            </div>
+
+            <div class="stack-gallery" id="stackGallery">
+                <div class="gallery-title">Portfolio</div>
+                <div class="stack-card" style="--i: 0;">
+                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=800&auto=format&fit=crop" data-full="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1600&auto=format&fit=crop" alt="Retrato 1">
+                    <span class="expand-hint"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z"/></svg></span>
+                </div>
+                <div class="stack-card" style="--i: 1;">
+                    <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=800&auto=format&fit=crop" data-full="https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=1600&auto=format&fit=crop" alt="Retrato 2">
+                    <span class="expand-hint"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z"/></svg></span>
+                </div>
+                <div class="stack-card" style="--i: 2;">
+                    <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=800&auto=format&fit=crop" data-full="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1600&auto=format&fit=crop" alt="Retrato 3">
+                    <span class="expand-hint"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z"/></svg></span>
+                </div>
+                <div class="stack-card" style="--i: 3;">
+                    <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=800&auto=format&fit=crop" data-full="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1600&auto=format&fit=crop" alt="Retrato 4">
+                    <span class="expand-hint"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z"/></svg></span>
+                </div>
+                <div class="stack-card" style="--i: 4;">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=800&auto=format&fit=crop" data-full="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1600&auto=format&fit=crop" alt="Retrato 5">
+                    <span class="expand-hint"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z"/></svg></span>
+                </div>
+            </div>
+
+            <footer class="footer">© 2026 MudaDigital. Made By Dean Van Halen</footer>
+        </section>
+    </div>
+
+    <!-- LIGHTBOX FULLSCREEN -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose" aria-label="Fechar">✕</button>
+        <img id="lightboxImg" src="" alt="">
+    </div>
+
+    <script>
+        /* ============================================================
+           PILHA DE CARDS RESPONSIVA
+           Problema: com position: sticky, o último card só "trava" na pilha
+           se a página ainda tiver rolagem sobrando depois dele. Sem sobra,
+           ele fica lá embaixo; com min-height no rodapé, sobra um vão.
+           Solução: medir o fim real da página e calcular onde cada card
+           trava, de modo que o último card chegue na pilha EXATAMENTE
+           quando a rolagem acaba, com o rodapé logo abaixo.
+           ============================================================ */
+        (function () {
+            const gallery = document.getElementById('stackGallery');
+            const title = gallery.querySelector('.gallery-title');
+            const cards = Array.from(gallery.querySelectorAll('.stack-card'));
+
+            const MIN_STEP = 16;        // px mínimos de cada card visível na pilha
+            const MAX_STEP_RATIO = 0.6; // máx. de cada card visível, como fração da altura do card
+                                        // (use 0.1 para a pilha bem junta; sobra vão em telas altas)
+            const TITLE_GAP = 8;        // respiro entre o título e o 1º card
+
+            function layoutStack() {
+                const n = cards.length;
+                if (n < 2) return;
+
+                // Usa o maior valor: se errar para mais, os cards só ficam um pouco mais juntos
+                const vh = Math.max(window.innerHeight, document.documentElement.clientHeight);
+                const cardH = cards[0].offsetHeight;
+                const docH = document.documentElement.scrollHeight;
+                const galleryBottom = gallery.getBoundingClientRect().bottom + window.scrollY;
+
+                // Distância do fim da galeria até o fim da página (rodapé + paddings)
+                const tail = docH - galleryBottom;
+
+                // Posição (em relação ao topo da tela) onde o último card para quando a página acaba
+                const lastTop = vh - tail - cardH;
+
+                // Espaço disponível entre o título e o último card, dividido entre os degraus da pilha
+                const topPad = title.offsetHeight + TITLE_GAP;
+                const maxStep = cardH * MAX_STEP_RATIO;
+                const step = Math.min(maxStep, Math.max(MIN_STEP, (lastTop - topPad) / (n - 1)));
+                const base = Math.max(topPad, lastTop - (n - 1) * step);
+
+                gallery.style.setProperty('--stack-top', base + 'px');
+                gallery.style.setProperty('--stack-step', step + 'px');
+            }
+
+            layoutStack();
+            window.addEventListener('load', layoutStack);
+            window.addEventListener('resize', layoutStack);
+            window.addEventListener('orientationchange', layoutStack);
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutStack);
+            if ('ResizeObserver' in window) new ResizeObserver(layoutStack).observe(document.body);
+        })();
+
+        /* ============================================================
+           LIGHTBOX
+           ============================================================ */
+        (function () {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightboxImg');
+            const closeBtn = document.getElementById('lightboxClose');
+
+            // Trava só o <html>. Com overflow no <body> ele viraria um "scroll container"
+            // e os cards sticky perderiam o efeito enquanto o lightbox estivesse aberto.
+            function lockScroll(lock) {
+                document.documentElement.style.overflow = lock ? 'hidden' : '';
+            }
+
+            let token = 0; // identifica a abertura atual: cargas atrasadas de aberturas antigas são descartadas
+
+            function setRatio(w, h) {
+                if (w && h) lightboxImg.style.setProperty('--ar', (w / h).toFixed(4));
+            }
+
+            function openLightbox(thumb) {
+                const current = ++token;
+                const thumbSrc = thumb.currentSrc || thumb.src;
+                const fullSrc = thumb.dataset.full || thumbSrc;
+
+                // 1) Abre NA HORA com a miniatura (já carregada no card).
+                //    Antes, o <img> mantinha a foto da abertura anterior até a versão grande baixar.
+                lightboxImg.src = thumbSrc;
+                lightboxImg.alt = thumb.alt || '';
+                setRatio(thumb.naturalWidth, thumb.naturalHeight);
+                lightbox.classList.add('open');
+                lockScroll(true);
+
+                // 2) Baixa a versão grande em segundo plano e troca quando estiver pronta
+                if (fullSrc !== thumbSrc) {
+                    const big = new Image();
+                    big.onload = function () {
+                        if (current !== token) return;
+                        setRatio(big.naturalWidth, big.naturalHeight);
+                        lightboxImg.src = fullSrc;
+                    };
+                    big.src = fullSrc;
+                }
+            }
+
+            function closeLightbox() {
+                token++;
+                lightbox.classList.remove('open');
+                lockScroll(false);
+            }
+
+            // Clique nos cards abre em tela cheia (versão maior via data-full)
+            document.querySelectorAll('.stack-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    const img = card.querySelector('img');
+                    if (img) openLightbox(img);
+                });
+            });
+
+            // Fechar: botão "X", clique fora da imagem e tecla Esc
+            closeBtn.addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', function (e) {
+                if (e.target === lightbox) closeLightbox();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeLightbox();
+            });
+        })();
+    </script>
+
+</body>
+</html>
